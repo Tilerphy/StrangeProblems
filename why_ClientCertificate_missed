@@ -1,3 +1,10 @@
 .net framework has been updated, if the Client Certificate has not 'Client Authentication' Purpose, the client certificate will be filtered by HttpClient\HttpWebRequest.
 
 But you can use SslStream to send the client certificate forcely.
+
+
+ref .net framework code：
+
+https://github.com/dotnet/corefx/blob/10aa8277de2521fb1e6a5b42d053ad8cc947be81/src/Common/src/System/Net/Security/CertificateHelper.cs#L55
+
+https://github.com/dotnet/corefx/blob/eb486176c4c88d16dccca16a9b9e9ab423063ad0/src/System.Net.Http.WinHttpHandler/src/System/Net/Http/WinHttpHandler.cs#L1118
