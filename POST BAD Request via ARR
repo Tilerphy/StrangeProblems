@@ -1,0 +1,5 @@
+if http request is marked as Transfer-Encoding: chunked 
+some old version URLRewrite will package the message twice.
+It will broke the Transfer-Encoding: chunked format.
+
+Update your URLRewrite module to resolve it.
