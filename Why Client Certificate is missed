@@ -66,3 +66,8 @@ As default, this value should not be here or set to 0 in Windows Server 2012 or 
 I don't know why they change it.
 
 Change the value to 0, and reboot the server, all done.
+===================================
+
+I found the change reason of HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\SendTrustedIssuerList
+IISCrypto 3.2 or above sets it to 1.
+Take care about it.
