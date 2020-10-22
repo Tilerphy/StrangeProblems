@@ -8,3 +8,80 @@ ref .net framework code：
 https://github.com/dotnet/corefx/blob/10aa8277de2521fb1e6a5b42d053ad8cc947be81/src/Common/src/System/Net/Security/CertificateHelper.cs#L55
 
 https://github.com/dotnet/corefx/blob/eb486176c4c88d16dccca16a9b9e9ab423063ad0/src/System.Net.Http.WinHttpHandler/src/System/Net/Http/WinHttpHandler.cs#L1118
+
+
+=============================================
+We have a production environment with Windows server 2012R2 Standard. A server is running on it and need client certificate authentication.
+
+One day, the client certificate processing failed. That server cannot receive any client certificate from our client requester.
+
+Our requester code is using C# .net framework Http request suites, like:
+
+================================
+X509Certificate2 cert = new X509Certificate2(@"C:\Communicate.pfx", "xxxxx");
+HttpClient client = null;
+System.Net.Http.WebRequestHandler _internalHandler = new System.Net.Http.WebRequestHandler();
+_internalHandler.UseProxy = false;
+_internalHandler.ClientCertificates.Add(cert);
+_internalHandler.ServerCertificateValidationCallback = ((obj, x509, chain, policyError) =>
+{
+     return true;
+});
+client = new HttpClient(_internalHandler);
+client.BaseAddress = new Uri(string.Format("https://{0}:{1}/", args[0], int.Parse(args[1])));
+
+==================================
+
+I found a lot of method to resolve it, for example:
+
+1. Change netsh http add sslcert clientcertnegotiation=enable
+2. Disable the services who are sharing the same port.
+3. Compare and change the Tls1.2 Cipher Suite.
+4. Change the renegotiation switch in Regedit.
+
+But all them failed.
+
+I try to write a raw tcp requester to find what happens, code like:
+
+====================================
+            X509Certificate2 cert = new X509Certificate2(@"C:\Communicate.pfx", "xxxxxxxx");
+            X509Certificate2Collection col = new X509Certificate2Collection();
+            col.Add(cert);
+            TcpClient client = new TcpClient(args[0], int.Parse(args[1]));
+            Stream stream = client.GetStream();
+            SslStream ssl = new SslStream(stream, false, new RemoteCertificateValidationCallback((a, b, c, d) =>
+            {
+                return true;
+            }), 
+            new LocalCertificateSelectionCallback((sender, targetHost, localCertificates, remoteCertificate, acceptableIssuers)=>
+            {
+                return cert;
+            }));
+            ssl.AuthenticateAsClient("1.1.1.1", col, System.Security.Authentication.SslProtocols.Tls12, false);
+            
+            string x = "GET /api/TimebasedProxy/ HTTP/1.1\r\n";
+            x += "Host:1.1.1.1\r\n";
+            x += "Content-Type: application/json\r\n";
+            x += "Connection: Close\r\n\r\n";
+            byte[] xs = Encoding.UTF8.GetBytes(x);
+            ssl.Write(xs, 0, xs.Length);
+====================================
+
+The internal method LocalCertificateSelectionCallback is used to select client certificate. In the Tcp requester I can force the selection.
+But in Http request of .net framework, I have no method to change its behavior.
+
+
+Then, I asked my colleage to collect customer's registry of HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders
+And I found a key: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\SendTrustedIssuerList
+its value is set as 1.
+
+As default, this value should not be here or set to 0 in Windows Server 2012 or later. (https://docs.microsoft.com/en-us/windows-server/security/tls/tls-registry-settings#sendtrustedissuerlist)
+I don't know why they change it.
+
+Change the value to 0, and reboot the server, all done.
+===================================
+
+I found the change reason of HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\SendTrustedIssuerList
+IISCrypto 3.2 or above sets it to 1.
+Take care about it.
+
