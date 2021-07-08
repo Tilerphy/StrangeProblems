@@ -1,0 +1,23 @@
+1. The Saml2 Response has a hard sequence.
+<Response>
+<Issuer></Issuer>
+<Signature><Signature>
+<Status></Status>
+<Assertion></Assertion>
+</Response>
+
+2. <Signature><Signature> under the Response is optional, but if you append it, you must ensure these:
+(1) SignXml is the sugguestion.
+(2) XmlDsigEnvelopedSignatureTransform and XmlDsigExcC14NTransform should be appended into Reference with Algorithm = "http://www.w3.org/2000/09/xmldsig#enveloped-signature" and 
+Algorithm = "http://www.w3.org/2001/10/xml-exc-c14n#"
+
+XmlDsigExcC14NTransform is seemded like the MUST one.
+(3) URI of Reference is the <Response> attribute "ID" with prepended "#"
+(4) Do not change the XML after generated the signature.
+
+3. Encrypt the Assertion with the public key of Relying Party setting.
+4. Sign the Assertion/Response with the private key of yourself as a Identity Provider.
+5. Microsoft.IdentityModel for JWT/OIDC and the System.IdentityModel for Saml2, but System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler could help to validate the JWT with
+JWKS directly.
+
+6. Org.BouncyCastle is good at PEM and ECC.
